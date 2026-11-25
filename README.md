@@ -2,11 +2,15 @@
 
 [![CI](https://github.com/noderings/rundeck-noderings-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/noderings/rundeck-noderings-plugin/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/noderings/rundeck-noderings-plugin?sort=semver)](https://github.com/noderings/rundeck-noderings-plugin/releases)
+[![Rundeck](https://img.shields.io/badge/rundeck-tested%20on%206.3-F73F39.svg)](https://www.rundeck.com)
 
 A [Rundeck](https://www.rundeck.com) plugin for [NodeRings](https://noderings.com). Your
 NodeRings virtual machines show up as Rundeck nodes, and job steps order, power and delete
 servers and manage DNS records, so runbooks like "build a server, point DNS at it and
 deploy" run end to end in one job.
+
+New to it? The step-by-step guide [How to use Rundeck on NodeRings to order a VPS and point DNS at it](https://noderings.com/blog/rundeck-vps) walks through a first run.
 
 It works with Rundeck open source and PagerDuty Process Automation (Rundeck 4 and later).
 
