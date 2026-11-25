@@ -1,0 +1,57 @@
+---
+name: ci
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Rundeck servers run the scripts with the system python3: Ubuntu 22.04 has 3.10.
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install pytest pyyaml ruff
+      - name: Ruff
+        run: ruff check . && ruff format --check .
+      - name: Unit tests
+        run: pytest tests
+      - name: Build the plugin zip
+        run: python3 build.py
+
+  rundeck:
+    name: Loads in Rundeck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 build.py
+      - name: Start Rundeck with the plugin
+        run: |
+          token=$(openssl rand -hex 20)
+          echo "admin: ${token}, admin" > "$RUNNER_TEMP/tokens.properties"
+          echo "RD_TOKEN=${token}" >> "$GITHUB_ENV"
+          docker build -f docker/Dockerfile -t rundeck-noderings .
+          docker run -d --name rd -p 4440:4440 -e RUNDECK_GRAILS_URL=http://localhost:4440 \
+            -e RUNDECK_TOKENS_FILE=/home/rundeck/etc/tokens.properties \
+            -v "$RUNNER_TEMP/tokens.properties:/home/rundeck/etc/tokens.properties:ro" rundeck-noderings
+      - name: Check the five providers are registered
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf -H "X-Rundeck-Auth-Token: $RD_TOKEN" -H "Accept: application/json" http://localhost:4440/api/60/plugin/list > plugins.json && break
+            sleep 5
+          done
+          count=$(jq '[.[] | select(.artifactName=="rundeck-noderings-plugin")] | length' plugins.json)
+          echo "NodeRings providers: $count"
+          test "$count" -eq 5

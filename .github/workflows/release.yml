@@ -1,0 +1,28 @@
+---
+# Builds the plugin zip for a vX.Y.Z tag and attaches it to a GitHub release.
+name: release
+
+"on":
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml && pytest tests
+      - name: Build
+        run: python3 build.py "${GITHUB_REF_NAME}"
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/rundeck-noderings-plugin-*.zip \
+            --title "$GITHUB_REF_NAME" --notes "See CHANGELOG.md. Install: Rundeck → System → Plugins → Upload Plugin."

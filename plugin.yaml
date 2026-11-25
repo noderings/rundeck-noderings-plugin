@@ -1,0 +1,432 @@
+name: "rundeck-noderings-plugin"
+rundeckPluginVersion: 2.0
+author: "NodeRings"
+date: "@date@"
+version: "@version@"
+url: "https://github.com/noderings/rundeck-noderings-plugin"
+description: "NodeRings virtual machines as Rundeck nodes, and workflow steps to order, power and delete servers and manage DNS records"
+rundeckCompatibilityVersion: "4.x"
+targetHostCompatibility: "unix"
+license: "Apache 2.0"
+tags:
+  - script
+  - ResourceModelSource
+  - WorkflowStep
+  - noderings
+sourceLink: "https://github.com/noderings/rundeck-noderings-plugin"
+providers:
+  - name: noderings-nodes
+    title: "NodeRings"
+    description: "Lists the organization's NodeRings virtual machines as nodes"
+    service: ResourceModelSource
+    plugin-type: script
+    script-interpreter: python3 -u
+    script-file: nodes.py
+    resource-format: resourcejson
+    config:
+      - name: tag_filter
+        title: Only VMs with these tags
+        description: "Comma separated NodeRings tags. A VM must have all of them. Empty lists every VM."
+        type: String
+        required: false
+        scope: Instance
+      - name: running_only
+        title: Only running VMs
+        description: "Leave out stopped VMs."
+        type: Boolean
+        default: "false"
+        required: false
+        scope: Instance
+      - name: username
+        title: SSH user
+        description: "User Rundeck logs in as on the VMs."
+        type: String
+        default: "root"
+        required: false
+        scope: Instance
+      - name: ssh_key_storage_path
+        title: SSH key
+        description: "Key Storage path of the private key for the VMs. Set on every node as ssh-key-storage-path."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          selectionAccessor: "STORAGE_PATH"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-key-type=private"
+      - name: api_token
+        title: API token
+        description: "Path in Rundeck Key Storage of the NodeRings service account token (stored as a password)."
+        type: String
+        required: true
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: api_url
+        title: API URL
+        description: "NodeRings API endpoint."
+        type: String
+        default: "https://api.noderings.com"
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+      - name: organization_id
+        title: Organization ID
+        description: "Organization to act in, for tokens that can reach more than one."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+  - name: noderings-vm-create
+    title: "NodeRings / Create VM"
+    description: "Orders a NodeRings virtual machine (the cheapest matching offer) and waits until it runs. Outputs RUNDECK:DATA:noderings_ipv4 and noderings_vm_id."
+    service: WorkflowStep
+    plugin-type: script
+    script-interpreter: python3 -u
+    script-file: vm_create.py
+    config:
+      - name: hostname
+        title: Hostname
+        type: String
+        required: true
+        scope: Instance
+      - name: plan
+        title: Plan code
+        description: "Plan to order, such as SC-GC-1C-1G-20."
+        type: String
+        required: false
+        scope: Instance
+      - name: country
+        title: Country
+        description: "Country of the offer, such as United States."
+        type: String
+        required: false
+        scope: Instance
+      - name: city
+        title: City
+        description: "City of the offer, such as Ashburn."
+        type: String
+        required: false
+        scope: Instance
+      - name: distro
+        title: Operating system
+        type: Select
+        values: "ubuntu_22_04,ubuntu_24_04,ubuntu_26_04,debian_12,debian_13,fedora_43,fedora_44,centos_9,centos_10,almalinux_9,almalinux_10,rocky_9,rocky_10"
+        default: "ubuntu_24_04"
+        required: true
+        scope: Instance
+      - name: ssh_keys
+        title: NodeRings SSH keys
+        description: "Comma separated names or IDs of SSH keys stored in NodeRings."
+        type: String
+        required: false
+        scope: Instance
+      - name: password
+        title: Root password
+        description: "Key Storage path of a root password, used when no SSH key is given."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: tags
+        title: Tags
+        description: "Comma separated tags."
+        type: String
+        required: false
+        scope: Instance
+      - name: firewall_ruleset
+        title: Firewall ruleset
+        description: "Name or ID of a firewall ruleset to attach."
+        type: String
+        required: false
+        scope: Instance
+      - name: billing_type
+        title: Billing type
+        type: Select
+        values: "usage,subscription,free"
+        default: "usage"
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: sort
+        title: Choose offer by
+        type: Select
+        values: "price,rating"
+        default: "price"
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: plan_id
+        title: Exact plan ID
+        description: "Instead of plan, country and city."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: region_id
+        title: Exact region ID
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: if_exists
+        title: If the VM exists
+        description: "fail stops the job; reuse continues with the existing VM."
+        type: Select
+        values: "fail,reuse"
+        default: "fail"
+        required: false
+        scope: Instance
+      - name: wait_timeout
+        title: Wait timeout
+        description: "Seconds to wait for the operation to finish."
+        type: Integer
+        default: "900"
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: api_token
+        title: API token
+        description: "Path in Rundeck Key Storage of the NodeRings service account token (stored as a password)."
+        type: String
+        required: true
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: api_url
+        title: API URL
+        description: "NodeRings API endpoint."
+        type: String
+        default: "https://api.noderings.com"
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+      - name: organization_id
+        title: Organization ID
+        description: "Organization to act in, for tokens that can reach more than one."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+  - name: noderings-vm-power
+    title: "NodeRings / Power"
+    description: "Starts, stops or restarts a NodeRings virtual machine and waits until it is done."
+    service: WorkflowStep
+    plugin-type: script
+    script-interpreter: python3 -u
+    script-file: vm_power.py
+    config:
+      - name: hostname
+        title: Hostname or ID
+        type: String
+        required: true
+        scope: Instance
+      - name: action
+        title: Action
+        type: Select
+        values: "start,stop,restart"
+        required: true
+        scope: Instance
+      - name: wait_timeout
+        title: Wait timeout
+        description: "Seconds to wait for the operation to finish."
+        type: Integer
+        default: "900"
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: api_token
+        title: API token
+        description: "Path in Rundeck Key Storage of the NodeRings service account token (stored as a password)."
+        type: String
+        required: true
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: api_url
+        title: API URL
+        description: "NodeRings API endpoint."
+        type: String
+        default: "https://api.noderings.com"
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+      - name: organization_id
+        title: Organization ID
+        description: "Organization to act in, for tokens that can reach more than one."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+  - name: noderings-vm-delete
+    title: "NodeRings / Delete VM"
+    description: "Deletes a NodeRings virtual machine. An hourly VM stops billing; a monthly subscription is cancelled without a refund."
+    service: WorkflowStep
+    plugin-type: script
+    script-interpreter: python3 -u
+    script-file: vm_delete.py
+    config:
+      - name: hostname
+        title: Hostname or ID
+        type: String
+        required: true
+        scope: Instance
+      - name: fail_if_missing
+        title: Fail if missing
+        type: Boolean
+        default: "false"
+        required: false
+        scope: Instance
+      - name: wait_timeout
+        title: Wait timeout
+        description: "Seconds to wait for the operation to finish."
+        type: Integer
+        default: "900"
+        required: false
+        scope: Instance
+        renderingOptions:
+          grouping: secondary
+      - name: api_token
+        title: API token
+        description: "Path in Rundeck Key Storage of the NodeRings service account token (stored as a password)."
+        type: String
+        required: true
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: api_url
+        title: API URL
+        description: "NodeRings API endpoint."
+        type: String
+        default: "https://api.noderings.com"
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+      - name: organization_id
+        title: Organization ID
+        description: "Organization to act in, for tokens that can reach more than one."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+  - name: noderings-dns-record
+    title: "NodeRings / DNS record"
+    description: "Sets or deletes the records of one name and type in a NodeRings DNS zone."
+    service: WorkflowStep
+    plugin-type: script
+    script-interpreter: python3 -u
+    script-file: dns_record.py
+    config:
+      - name: zone
+        title: Zone
+        description: "Name or ID of the zone, such as example.com."
+        type: String
+        required: true
+        scope: Instance
+      - name: name
+        title: Name
+        description: "Relative to the zone (www, or @ for the apex)."
+        type: String
+        default: "@"
+        required: true
+        scope: Instance
+      - name: type
+        title: Type
+        type: Select
+        values: "A,AAAA,CAA,CNAME,MX,NS,PTR,SRV,TXT,ALIAS,DS,SSHFP,TLSA,HTTPS,SVCB"
+        required: true
+        scope: Instance
+      - name: values
+        title: Values
+        description: "One per line or comma separated. Hostnames end with a dot; TXT is plain text. Job data works, for example ${data.noderings_ipv4}."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          displayType: MULTI_LINE
+      - name: ttl
+        title: TTL
+        type: Integer
+        default: "3600"
+        required: false
+        scope: Instance
+      - name: action
+        title: Action
+        type: Select
+        values: "set,delete"
+        default: "set"
+        required: true
+        scope: Instance
+      - name: api_token
+        title: API token
+        description: "Path in Rundeck Key Storage of the NodeRings service account token (stored as a password)."
+        type: String
+        required: true
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          selectionAccessor: "STORAGE_PATH"
+          valueConversion: "STORAGE_PATH_AUTOMATIC_READ"
+          storage-path-root: "keys"
+          storage-file-meta-filter: "Rundeck-data-type=password"
+      - name: api_url
+        title: API URL
+        description: "NodeRings API endpoint."
+        type: String
+        default: "https://api.noderings.com"
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
+      - name: organization_id
+        title: Organization ID
+        description: "Organization to act in, for tokens that can reach more than one."
+        type: String
+        required: false
+        scope: Instance
+        renderingOptions:
+          groupName: NodeRings API
+          grouping: secondary
