@@ -40,20 +40,28 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 build.py
       - name: Start Rundeck with the plugin
+        # Runs on a long-lived self-hosted runner too: use a per-run container name and
+        # a free local port, and always remove the container afterwards.
         run: |
+          docker rm -f rd >/dev/null 2>&1 || true   # left over from runs before this cleanup existed
+          name="rd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           token=$(openssl rand -hex 20)
           echo "admin: ${token}, admin" > "$RUNNER_TEMP/tokens.properties"
-          echo "RD_TOKEN=${token}" >> "$GITHUB_ENV"
           docker build -f docker/Dockerfile -t rundeck-noderings .
-          docker run -d --name rd -p 4440:4440 -e RUNDECK_GRAILS_URL=http://localhost:4440 \
+          docker run -d --name "$name" -p 127.0.0.1::4440 -e RUNDECK_GRAILS_URL=http://localhost:4440 \
             -e RUNDECK_TOKENS_FILE=/home/rundeck/etc/tokens.properties \
             -v "$RUNNER_TEMP/tokens.properties:/home/rundeck/etc/tokens.properties:ro" rundeck-noderings
+          port=$(docker port "$name" 4440/tcp | head -1 | sed 's/.*://')
+          { echo "RD_TOKEN=${token}"; echo "RD_NAME=${name}"; echo "RD_URL=http://127.0.0.1:${port}"; } >> "$GITHUB_ENV"
       - name: Check the five providers are registered
         run: |
           for i in $(seq 1 60); do
-            curl -sf -H "X-Rundeck-Auth-Token: $RD_TOKEN" -H "Accept: application/json" http://localhost:4440/api/60/plugin/list > plugins.json && break
+            curl -sf -H "X-Rundeck-Auth-Token: $RD_TOKEN" -H "Accept: application/json" "$RD_URL/api/60/plugin/list" > plugins.json && break
             sleep 5
           done
           count=$(jq '[.[] | select(.artifactName=="rundeck-noderings-plugin")] | length' plugins.json)
           echo "NodeRings providers: $count"
           test "$count" -eq 5
+      - name: Remove the Rundeck container
+        if: always()
+        run: docker rm -f "${RD_NAME:-rd-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}}" >/dev/null 2>&1 || true
