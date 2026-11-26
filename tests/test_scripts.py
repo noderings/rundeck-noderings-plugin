@@ -9,6 +9,8 @@ import nr_rundeck
 import vm_create
 import vm_delete
 import vm_power
+from fakeapi import ACME_ID, ACME_OFFER, ACME_PLAN_ID, ACME_REGION_ID, PLAN_ID
+from nr_compute import NodeRingsUsageError
 
 OFFER = {"RD_CONFIG_PLAN": "SC-GC-1C-1G-20", "RD_CONFIG_COUNTRY": "United States", "RD_CONFIG_CITY": "Ashburn"}
 
@@ -39,6 +41,36 @@ def test_create_orders_and_outputs_job_data(client, env, fake):
     assert f"RUNDECK:DATA:noderings_vm_id={vm['id']}" in log
     assert "RUNDECK:DATA:noderings_ipv4=192.0.2.50" in log
     assert "Ordering web-1: SC-GC-1C-1G-20 from Cheap Host in Ashburn" in log
+
+
+@pytest.mark.parametrize("provider", [ACME_ID, "acme-hosting", "Acme Hosting", "  acme HOSTING "])
+def test_create_orders_from_the_named_provider(client, env, fake, provider):
+    add_key(fake)
+    _vm, log = create(client, env, RD_CONFIG_PROVIDER=provider)
+    body = fake.created_vm_bodies[-1]
+    assert body["planId"] == ACME_PLAN_ID and body["regionId"] == ACME_REGION_ID
+    assert "from Acme Hosting in Ashburn" in log
+
+
+def test_create_without_a_provider_takes_the_cheapest(client, env, fake):
+    add_key(fake)
+    create(client, env)
+    assert fake.created_vm_bodies[-1]["planId"] == PLAN_ID
+
+
+def test_create_fails_for_an_unknown_provider(client, env, fake):
+    add_key(fake)
+    with pytest.raises(NodeRingsUsageError, match="from provider Nobody Hosting"):
+        create(client, env, RD_CONFIG_PROVIDER="Nobody Hosting")
+    assert not fake.created_vm_bodies
+
+
+def test_create_refuses_a_provider_name_two_providers_share(client, env, fake):
+    add_key(fake)
+    fake.extra_providers.append(dict(ACME_OFFER, organizationId="66666666-6666-6666-6666-666666666666"))
+    with pytest.raises(NodeRingsUsageError, match="more than one provider is named acme hosting"):
+        create(client, env, RD_CONFIG_PROVIDER="acme hosting")
+    assert not fake.created_vm_bodies
 
 
 def test_create_refuses_or_reuses_an_existing_vm(client, env, fake):

@@ -14,6 +14,7 @@ from nr_client import is_uuid
 from nr_client import new_uuid
 from nr_client import snake
 from nr_client import trim_enum
+from nr_marketplace import NoOfferError
 from nr_marketplace import find_offers
 from nr_marketplace import no_offer_message
 from nr_marketplace import offer_view
@@ -104,21 +105,30 @@ def choose_offer(
     require_capabilities=None,
     require_ipv6=False,
     sort="price",
+    provider=None,
 ):
-    """Return ``(plan_id, region_id, offer)`` for the best matching offer."""
-    offers, located = find_offers(
-        client,
-        plan_code,
-        country,
-        city,
-        billing_type=billing_type,
-        provider_id=provider_id,
-        require_capabilities=require_capabilities or [],
-        require_ipv6=require_ipv6,
-        sort=sort,
-    )
+    """Return ``(plan_id, region_id, offer)`` for the best matching offer.
+
+    ``provider`` limits the offers to one provider, given by ID, storefront slug or name."""
+    try:
+        offers, located = find_offers(
+            client,
+            plan_code,
+            country,
+            city,
+            billing_type=billing_type,
+            provider_id=provider_id,
+            require_capabilities=require_capabilities or [],
+            require_ipv6=require_ipv6,
+            sort=sort,
+            provider=provider,
+        )
+    except NoOfferError as exc:
+        raise NodeRingsUsageError(str(exc)) from exc
     if not offers:
-        raise NodeRingsUsageError(no_offer_message(plan_code, country, city, billing_type, located))
+        raise NodeRingsUsageError(
+            no_offer_message(plan_code, country, city, billing_type, located, provider or provider_id)
+        )
     best = offers[0]
     return best["plan_id"], best["region_id"], offer_view(best)
 

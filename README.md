@@ -19,7 +19,7 @@ It works with Rundeck open source and PagerDuty Process Automation (Rundeck 4 an
 | Provider | Type | What it does |
 | --- | --- | --- |
 | **NodeRings** | Node source | Lists the organization's VMs as nodes, with tags and attributes |
-| **NodeRings / Create VM** | Workflow step | Orders the cheapest matching offer and waits until it runs; outputs its IP as job data |
+| **NodeRings / Create VM** | Workflow step | Orders the cheapest matching offer, or one from a provider you name, and waits until it runs; outputs its IP as job data |
 | **NodeRings / Power** | Workflow step | Starts, stops or restarts a VM |
 | **NodeRings / Delete VM** | Workflow step | Deletes a VM |
 | **NodeRings / DNS record** | Workflow step | Sets or deletes the records of one name and type in a zone |
@@ -111,9 +111,14 @@ the server's own node, which Rundeck's built-in **Local** node source provides; 
 have it by default.
 
 **Create VM**: hostname, plan code, country and city (or an exact plan ID and region ID),
-operating system, NodeRings SSH keys (names) or a root password from Key Storage, tags,
+provider, operating system, NodeRings SSH keys (names) or a root password from Key Storage, tags,
 firewall ruleset, billing type, and whether to fail or reuse a VM that already exists. The
 order carries an idempotency key, so a lost response never orders a second server.
+
+Without a provider the step takes the cheapest offer (compute price, then rating), so the
+provider can change between runs. Set `provider` to keep it fixed. It takes the provider's
+ID, its storefront slug (such as `acme-hosting`) or its name (`Acme Hosting`, any case). A
+name that more than one provider uses fails the step; give the ID or slug then.
 
 The step prints `RUNDECK:DATA:noderings_ipv4=...`, `noderings_ipv6` and `noderings_vm_id`.
 Add the **Key Value Data** log filter to the job (default pattern), and later steps can use
@@ -131,6 +136,7 @@ Add the **Key Value Data** log filter to the job (default pattern), and later st
           plan: SC-GC-1C-1G-20
           country: United States
           city: Ashburn
+          provider: acme-hosting
           distro: ubuntu_24_04
           ssh_keys: deploy
           tags: web
