@@ -87,7 +87,7 @@ providers:
           grouping: secondary
   - name: noderings-vm-create
     title: "NodeRings / Create VM"
-    description: "Orders a NodeRings virtual machine (the cheapest matching offer) and waits until it runs. Outputs RUNDECK:DATA:noderings_ipv4 and noderings_vm_id."
+    description: "Orders a NodeRings virtual machine (the cheapest matching offer, or one from the provider you name) and waits until it runs. Outputs RUNDECK:DATA:noderings_ipv4 and noderings_vm_id."
     service: WorkflowStep
     plugin-type: script
     script-interpreter: python3 -u
@@ -113,6 +113,12 @@ providers:
       - name: city
         title: City
         description: "City of the offer, such as Ashburn."
+        type: String
+        required: false
+        scope: Instance
+      - name: provider
+        title: Provider
+        description: "Only order from this hosting provider: its provider ID, storefront slug (such as acme-hosting) or name. Empty picks the best offer from any provider."
         type: String
         required: false
         scope: Instance

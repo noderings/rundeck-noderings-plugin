@@ -27,7 +27,13 @@ def create(client, env=None, out=None):
             if not (plan and country and city):
                 raise nr_rundeck.StepFailure("give plan, country and city (or plan_id and region_id)")
             plan_id, region_id, offer = nr_compute.choose_offer(
-                client, plan, country, city, billing_type=config("billing_type", "usage", env), sort=config("sort", "price", env)
+                client,
+                plan,
+                country,
+                city,
+                billing_type=config("billing_type", "usage", env),
+                sort=config("sort", "price", env),
+                provider=config("provider", None, env),
             )
             print(f"Ordering {hostname}: {plan} from {offer['provider_name']} in {city}, {country}.", file=out or sys.stdout)
         keys = nr_compute.resolve_ssh_keys(client, config_list("ssh_keys", env))
