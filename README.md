@@ -207,6 +207,10 @@ RUNDECK_TOKEN=... NODERINGS_TOKEN=... python3 tests/e2e/rundeck_e2e.py
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Related
+
+The [Go SDK](https://github.com/noderings/noderings-go) is the official Go client for the NodeRings API.
+
 ## License
 
 Copyright NodeRings. Licensed under the [Apache License, Version 2.0](LICENSE).
